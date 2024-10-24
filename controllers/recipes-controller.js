@@ -2,6 +2,20 @@ import initKnex from "knex";
 import configuration from "../knexfile.js";
 const knex = initKnex(configuration);
 
+const getById = async (req, res) => {
+  const id = req.params.id;
+
+  try {
+    const data = await knex("recipes").select("*").where("id", "=", id);
+    data[0]["directions"] = JSON.parse(data[0]["directions"]);
+    data[0]["ner"] = JSON.parse(data[0]["ner"]);
+    res.status(200).send(data);
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    res.status(500).json({ error: "An error occurred while fetching recipe." });
+  }
+};
+
 const all = async (req, res) => {
   // Get the page and limit from query parameters
   const page = parseInt(req.query.page) || 1; // Default to page 1
@@ -13,7 +27,7 @@ const all = async (req, res) => {
   try {
     // Query to get paginated products
     const result = await knex("recipes")
-      .select("*")
+      .select("id", "title", "ner", "directions")
       .orderBy("id")
       .limit(limit)
       .offset(offset);
@@ -22,20 +36,23 @@ const all = async (req, res) => {
     const countResult = await knex("recipes").count("id as total_rows").first();
     const totalRows = parseInt(countResult.total_rows, 10);
     const totalPages = Math.ceil(totalRows / limit);
-
-    // Send response with paginated data
+    // Parse the 'ner' and 'directions' fields for each recipe
+    const parsedResult = result.map((recipe) => ({
+      ...recipe,
+      ner: JSON.parse(recipe.ner),
+      directions: JSON.parse(recipe.directions),
+    }));
+    // Send response with paginated dat
     res.json({
       page,
       limit,
       totalRows,
       totalPages,
-      recipes: result,
+      recipes: parsedResult,
     });
   } catch (error) {
     console.error("Error fetching products:", error);
-    res
-      .status(500)
-      .json({ error: "An error occurred while fetching products." });
+    res.status(500).json({ error: "An error occurred while fetching recipe." });
   }
 };
 
@@ -71,14 +88,13 @@ const random = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching products:", error);
-    res
-      .status(500)
-      .json({ error: "An error occurred while fetching products." });
+    res.status(500).json({ error: "An error occurred while fetching recipe." });
   }
 };
 
 const search = async (req, res) => {
   const s = req.query.s;
+  console.log("incomining: ", s);
 
   try {
     const data = await knex("ingredients")
@@ -97,4 +113,4 @@ const search = async (req, res) => {
   }
 };
 
-export { all, search, random };
+export { all, search, random, getById };

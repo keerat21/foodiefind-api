@@ -3,6 +3,7 @@ import express from "express";
 const router = express.Router();
 
 router.route("/").get(inventoryController.all);
+router.route("/:id").get(inventoryController.getById);
 router.route("/random").get(inventoryController.random);
 
 router.route("/ingredients").get(inventoryController.search);
