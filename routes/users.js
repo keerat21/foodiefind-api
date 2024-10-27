@@ -30,6 +30,13 @@ function authenticateToken(req, res, next) {
 
 router.route("/register").post(userController.addUser);
 router.route("/verify").post(userController.verifyUser);
-router.get("/user", authenticateToken, userController.getUser);
+router.route("/user").get(authenticateToken, userController.getUser);
+router.route("/like").post(authenticateToken, userController.recipeLike);
+router.route("/recipes").get(authenticateToken, userController.getUserRecipes);
+router
+  .route("/ingredients")
+  .get(authenticateToken, userController.getUserIngredients)
+  .post(authenticateToken, userController.postUserIngredients)
+  .put(authenticateToken, userController.updateUserIngredients);
 
 export default router;
