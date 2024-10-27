@@ -4,7 +4,7 @@ const knex = initKnex(configuration);
 
 const getById = async (req, res) => {
   const id = req.params.id;
-
+  console.log("here");
   try {
     const data = await knex("recipes").select("*").where("id", "=", id);
     data[0]["directions"] = JSON.parse(data[0]["directions"]);
@@ -53,6 +53,73 @@ const all = async (req, res) => {
   } catch (error) {
     console.error("Error fetching products:", error);
     res.status(500).json({ error: "An error occurred while fetching recipe." });
+  }
+};
+
+const getRecipesByIngredients = async (req, res) => {
+  const reqData = req.body;
+  const page = parseInt(req.query.page) || 0; // Get the page number from query, default to 0
+  const ingredientIds = reqData.ingredients;
+  const limit = 10000; // Number of recipes to fetch per request
+
+  const offset = page * limit;
+  try {
+    let validIds = [];
+    let pushOffset = offset;
+    // Step 1: Select top recipe_ids based on given ingredient_ids with pagination
+    while (validIds.length < 6) {
+      const topRecipes = await knex("recipetoingredients")
+        .select("recipe_id")
+        .whereIn("ingredient_id", ingredientIds)
+        .groupBy("recipe_id")
+        .limit(limit)
+        .offset(pushOffset);
+
+      const recipes = await knex("recipetoingredients")
+        .select("recipe_id", "ingredient_id")
+        .whereIn(
+          "recipe_id",
+          topRecipes.map((item) => item.recipe_id)
+        );
+
+      const allRecipeIds = [];
+      recipes.forEach((item) => {
+        if (!allRecipeIds.includes(item.recipe_id))
+          allRecipeIds.push(item.recipe_id);
+      });
+      const rejectedIds = [];
+      recipes.forEach((row) => {
+        if (
+          !rejectedIds.includes(row.recipe_id) &&
+          !ingredientIds.includes(row.ingredient_id)
+        ) {
+          rejectedIds.push(row.recipe_id);
+        }
+      });
+      console.log("off", pushOffset);
+      console.log("len:", validIds.length);
+      validIds = [
+        ...validIds,
+        ...allRecipeIds.filter((id) => !rejectedIds.includes(id)),
+      ];
+      pushOffset += limit;
+    }
+    const dataToSend = await knex("recipes")
+      .select("title", "id", "directions")
+      .whereIn(
+        "id",
+        validIds.map((id) => id)
+      );
+    const parsedResult = dataToSend.map((recipe) => ({
+      ...recipe,
+      directions: JSON.parse(recipe.directions),
+    }));
+    const currentPage = pushOffset / limit;
+
+    res.json({ currentPage: currentPage, recipes: parsedResult });
+  } catch (error) {
+    console.error("Error fetching recipes:", error);
+    res.status(500).send("Server error while fetching recipes by ingredients.");
   }
 };
 
@@ -113,4 +180,4 @@ const search = async (req, res) => {
   }
 };
 
-export { all, search, random, getById };
+export { all, search, random, getById, getRecipesByIngredients };
