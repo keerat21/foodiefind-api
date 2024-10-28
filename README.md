@@ -1,6 +1,6 @@
 
-# Keerat-Tanwar-bandsite  ☸️☸️
-<h1 align="center"> Capstone: Foodiefind-api</h1> <br>
+# Foodiefind-api  ☸️☸️
+<h1 align="center"> Final Capstone Project: Foodiefind-api</h1> <br>
 
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
