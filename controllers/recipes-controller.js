@@ -135,45 +135,57 @@ const getRecipesByIngredients = async (req, res) => {
 const getRecipesByIngredients2 = async (req, res) => {
   const reqData = req.body;
   const page = parseInt(req.query.page) || 0; // Get the page number from query, default to 0
-  const ingredientIds = reqData.ingredients;
-  const limit = 10000; // Number of recipes to fetch per request
-
+  const ingredientIds = reqData.ingredients; // Assuming this is an array of ingredient IDs
+  const limit = 10; // Number of recipes to fetch per request
   const offset = page * limit;
+
   try {
-    let validIds = [];
-    let pushOffset = offset;
+    if (!Array.isArray(ingredientIds) || ingredientIds.length === 0) {
+      return res
+        .status(400)
+        .json({ error: "Invalid or empty ingredient IDs." });
+    }
+
     // Step 1: Select top recipe_ids based on given ingredient_ids with pagination
-
     const unionAllParts = ingredientIds
-      .map((id) => `SELECT ? AS ingredient_id`)
-      .join(" UNION ALL ");
+      .map(() => `SELECT ? AS ingredient_id`) // Placeholder for each ingredient ID
+      .join(" UNION ALL "); // Join them with UNION ALL
 
+    // Query to get top recipes based on ingredient criteria
     const topRecipes = await knex("recipetoingredients as r")
       .select("r.recipe_id")
       .groupBy("r.recipe_id")
       .havingRaw(
-        `COUNT(DISTINCT r.ingredient_id) = COUNT(DISTINCT CASE WHEN r.ingredient_id IN (?) THEN r.ingredient_id END)`,
-        [ingredientIds]
+        `COUNT(DISTINCT r.ingredient_id) = COUNT(DISTINCT CASE WHEN r.ingredient_id IN (${ingredientIds
+          .map(() => "?")
+          .join(",")}) THEN r.ingredient_id END)`,
+        [...ingredientIds] // Pass ingredient IDs here for the IN clause
       )
       .havingRaw(
         `COUNT(DISTINCT r.ingredient_id) <= (SELECT COUNT(DISTINCT ingredient_id) FROM (${unionAllParts}) AS s)`,
-        ingredientIds
+        ingredientIds // Use the ingredient IDs for the subquery
       )
       .orderByRaw("COUNT(DISTINCT r.ingredient_id) DESC")
-      .limit(10);
+      .limit(limit) // Adjust limit to the number per request
+      .offset(offset); // Apply pagination offset
+
     console.log(topRecipes);
 
+    // Fetch additional recipe details
     const dataToSend = await knex("recipes")
       .whereIn(
         "id",
-        topRecipes.map((i) => i.recipe_id)
+        topRecipes.map((i) => i.recipe_id) // Map to get the recipe IDs
       )
       .select("title", "id", "directions");
+
+    // Parse directions from JSON
     const parsedResult = dataToSend.map((recipe) => ({
       ...recipe,
       directions: JSON.parse(recipe.directions),
     }));
 
+    // Send response
     res.json({ currentPage: page, recipes: parsedResult });
   } catch (error) {
     console.error("Error fetching recipes:", error);
