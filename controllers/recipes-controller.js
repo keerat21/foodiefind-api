@@ -132,7 +132,56 @@ const getRecipesByIngredients = async (req, res) => {
   }
 };
 
-const search = async (req, res) => {
+const getRecipesByIngredients2 = async (req, res) => {
+  const reqData = req.body;
+  const page = parseInt(req.query.page) || 0; // Get the page number from query, default to 0
+  const ingredientIds = reqData.ingredients;
+  const limit = 10000; // Number of recipes to fetch per request
+
+  const offset = page * limit;
+  try {
+    let validIds = [];
+    let pushOffset = offset;
+    // Step 1: Select top recipe_ids based on given ingredient_ids with pagination
+
+    const unionAllParts = ingredientIds
+      .map((id) => `SELECT ? AS ingredient_id`)
+      .join(" UNION ALL ");
+
+    const topRecipes = await knex("recipetoingredients as r")
+      .select("r.recipe_id")
+      .groupBy("r.recipe_id")
+      .havingRaw(
+        `COUNT(DISTINCT r.ingredient_id) = COUNT(DISTINCT CASE WHEN r.ingredient_id IN (?) THEN r.ingredient_id END)`,
+        [ingredientIds]
+      )
+      .havingRaw(
+        `COUNT(DISTINCT r.ingredient_id) <= (SELECT COUNT(DISTINCT ingredient_id) FROM (${unionAllParts}) AS s)`,
+        ingredientIds
+      )
+      .orderByRaw("COUNT(DISTINCT r.ingredient_id) DESC")
+      .limit(10);
+    console.log(topRecipes);
+
+    const dataToSend = await knex("recipes")
+      .whereIn(
+        "id",
+        topRecipes.map((i) => i.recipe_id)
+      )
+      .select("title", "id", "directions");
+    const parsedResult = dataToSend.map((recipe) => ({
+      ...recipe,
+      directions: JSON.parse(recipe.directions),
+    }));
+
+    res.json({ currentPage: page, recipes: parsedResult });
+  } catch (error) {
+    console.error("Error fetching recipes:", error);
+    res.status(500).send("Server error while fetching recipes by ingredients.");
+  }
+};
+
+const searchIngredients = async (req, res) => {
   const s = req.query.s;
   console.log("incomining: ", s);
 
@@ -153,4 +202,34 @@ const search = async (req, res) => {
   }
 };
 
-export { all, search, getById, getRecipesByIngredients };
+const searchRecipes = async (req, res) => {
+  const s = req.query.s;
+  console.log("incomining: ", s);
+
+  try {
+    const data = await knex("recipes")
+      .select("id", "title", "ner", "directions")
+      .where((builder) => {
+        if (s) {
+          builder.where("title", "like", `%${s}%`);
+        }
+      })
+      .orderByRaw("LENGTH(title)") // Sort by the length of the ingredient names
+      .limit(10); // Select only the top 10 results
+    console.log(data);
+
+    res.status(200).json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send(`Error retrieving inventories: ${error}`);
+  }
+};
+
+export {
+  all,
+  searchIngredients,
+  getById,
+  getRecipesByIngredients,
+  getRecipesByIngredients2,
+  searchRecipes,
+};

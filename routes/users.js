@@ -32,11 +32,16 @@ router.route("/register").post(userController.addUser);
 router.route("/verify").post(userController.verifyUser);
 router.route("/user").get(authenticateToken, userController.getUser);
 router.route("/like").post(authenticateToken, userController.recipeLike);
+router
+  .route("/like/:id")
+  .get(authenticateToken, userController.recipeLikeCheck)
+  .delete(authenticateToken, userController.removeLike);
 router.route("/recipes").get(authenticateToken, userController.getUserRecipes);
 router
   .route("/ingredients")
   .get(authenticateToken, userController.getUserIngredients)
   .post(authenticateToken, userController.postUserIngredients)
-  .put(authenticateToken, userController.updateUserIngredients);
+  .put(authenticateToken, userController.updateUserIngredients)
+  .delete(authenticateToken, userController.deleteIngredient);
 
 export default router;

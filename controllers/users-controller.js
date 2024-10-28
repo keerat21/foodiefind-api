@@ -79,10 +79,67 @@ export async function recipeLike(req, res) {
       user_id: req.user.userId,
       recipe_id: parseInt(req.body.recipe_id),
     });
+
+    const ingredientIds = await knex("recipetoingredients")
+      .select("ingredient_id")
+      .where({ recipe_id: req.body.recipe_id });
+
+    const insertData = ingredientIds.map(({ ingredient_id }) => ({
+      user_id: req.user.userId,
+      ingredient_id,
+    }));
+
+    await knex("user_ingredients")
+      .insert(insertData)
+      .onConflict(["user_id", "recipe_id"]) // Specify columns to watch for conflict
+      .ignore(); // Ignore the insert if there's a conflict
     res.status(200).json({ user: req.user.userId });
   } catch (error) {
     res.send(500);
     console.error(error);
+  }
+}
+
+export async function recipeLikeCheck(req, res) {
+  console.log("here2");
+  const { id } = req.params;
+
+  try {
+    const result = await knex("user_recipes")
+      .select()
+      .where({
+        user_id: req.user.userId,
+        recipe_id: parseInt(id), // Assuming the recipe_id is passed as the route parameter
+      })
+      .first(); // Fetch the first matching record (or undefined if none)
+
+    // Send true if a record was found, false otherwise
+    const exists = !!result;
+    res.status(200).json({ exists });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ error: "Error checking recipe like status." });
+  }
+}
+
+export async function removeLike(req, res) {
+  console.log("here2");
+  const { id } = req.params;
+
+  try {
+    const result = await knex("user_recipes")
+      .where({
+        user_id: req.user.userId,
+        recipe_id: parseInt(id), // Assuming the recipe_id is passed as the route parameter
+      })
+      .delete(); // Fetch the first matching record (or undefined if none)
+
+    // Send true if a record was found, false otherwise
+    const exists = !!result;
+    res.status(200).json({ exists });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ error: "Error checking recipe like status." });
   }
 }
 
@@ -166,6 +223,24 @@ export async function updateUserIngredients(req, res) {
     res.status(200).json({ ingredients: result });
   } catch (error) {
     res.send(500);
+    console.error(error);
+  }
+}
+
+export async function deleteIngredient(req, res) {
+  const userId = req.user.userId;
+  const ingredientId = req.query.id;
+  try {
+    const result = await knex("user_ingredients")
+      .where({
+        ingredient_id: ingredientId,
+        user_id: userId,
+      })
+      .delete();
+
+    res.status(200).send({ message: "Ingredient deleted successfully." });
+  } catch (error) {
+    res.status(500).send({ error: "Failed to delete ingredient." });
     console.error(error);
   }
 }
