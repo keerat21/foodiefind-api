@@ -13,13 +13,49 @@ export async function addUser(req, res) {
   const hashedPassword = await bcrypt.hash(userData.password, saltRounds);
 
   try {
+    const Checkuser = await knex("users")
+      .select("*")
+      .where("email", "=", userData.email)
+      .first();
+
+    if (Checkuser) {
+      return res.status(409).send("User already exists");
+    }
+
     const response = await knex("users").insert({
       username: userData.username,
       email: userData.email,
       password_hash: hashedPassword,
     });
 
-    res.status(200).send("success");
+    const user = await knex("users")
+      .select("*")
+      .where("email", "=", userData.email)
+      .first();
+
+    if (!user) {
+      return res.status(404).send("User not found");
+    }
+
+    const isPasswordValid = await bcrypt.compare(
+      userData.password,
+      user.password_hash
+    );
+
+    if (isPasswordValid) {
+      const token = jwt.sign(
+        {
+          userId: user.id,
+          userName: user.username,
+        },
+        JWT_SECRET_KEY,
+        {
+          expiresIn: "1h",
+        }
+      );
+
+      res.json({ token });
+    } else res.status(401).send("login problem");
   } catch (error) {
     res.status(501).send("failed adding user: " + error);
   }
