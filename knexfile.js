@@ -1,4 +1,3 @@
-// Import dotenv to process environment variables from `.env` file.
 import "dotenv/config";
 
 export default {

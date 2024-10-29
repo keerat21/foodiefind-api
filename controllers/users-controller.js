@@ -29,24 +29,18 @@ export async function verifyUser(req, res) {
   const { email, password } = req.body;
 
   try {
-    // Fetch user data from the database based on the provided email
-    console.log({ email, password });
     const user = await knex("users")
       .select("*")
       .where("email", "=", email)
       .first();
-    console.log("here" + user.username);
 
-    // Check if the user exists
     if (!user) {
       return res.status(404).send("User not found");
     }
 
-    // Compare the provided password with the stored hashed password
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
     if (isPasswordValid) {
-      // Generate JWT token
       const token = jwt.sign(
         {
           userId: user.id,
@@ -68,12 +62,10 @@ export async function verifyUser(req, res) {
 }
 
 export async function getUser(req, res) {
-  console.log(req.user);
   res.json({ user: req.user });
 }
 
 export async function recipeLike(req, res) {
-  console.log(req.body.recipe_id);
   try {
     await knex("user_recipes").insert({
       user_id: req.user.userId,
@@ -91,8 +83,8 @@ export async function recipeLike(req, res) {
 
     await knex("user_ingredients")
       .insert(insertData)
-      .onConflict(["user_id", "recipe_id"]) // Specify columns to watch for conflict
-      .ignore(); // Ignore the insert if there's a conflict
+      .onConflict(["user_id", "recipe_id"])
+      .ignore();
     res.status(200).json({ user: req.user.userId });
   } catch (error) {
     res.send(500);
@@ -101,7 +93,6 @@ export async function recipeLike(req, res) {
 }
 
 export async function recipeLikeCheck(req, res) {
-  console.log("here2");
   const { id } = req.params;
 
   try {
@@ -109,11 +100,10 @@ export async function recipeLikeCheck(req, res) {
       .select()
       .where({
         user_id: req.user.userId,
-        recipe_id: parseInt(id), // Assuming the recipe_id is passed as the route parameter
+        recipe_id: parseInt(id),
       })
-      .first(); // Fetch the first matching record (or undefined if none)
+      .first();
 
-    // Send true if a record was found, false otherwise
     const exists = !!result;
     res.status(200).json({ exists });
   } catch (error) {
@@ -123,18 +113,16 @@ export async function recipeLikeCheck(req, res) {
 }
 
 export async function removeLike(req, res) {
-  console.log("here2");
   const { id } = req.params;
 
   try {
     const result = await knex("user_recipes")
       .where({
         user_id: req.user.userId,
-        recipe_id: parseInt(id), // Assuming the recipe_id is passed as the route parameter
+        recipe_id: parseInt(id),
       })
-      .delete(); // Fetch the first matching record (or undefined if none)
+      .delete();
 
-    // Send true if a record was found, false otherwise
     const exists = !!result;
     res.status(200).json({ exists });
   } catch (error) {
