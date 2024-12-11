@@ -132,7 +132,6 @@ const getRecipesByIngredients2 = async (req, res) => {
   const ingredientIds = reqData.ingredients;
   const limit = 10;
   const offset = page * limit;
-
   try {
     if (!Array.isArray(ingredientIds) || ingredientIds.length === 0) {
       return res
@@ -191,7 +190,6 @@ const searchIngredients = async (req, res) => {
           builder.where("name", "like", `%${s}%`);
         }
       })
-      .orderByRaw("LENGTH(name)")
       .limit(10);
 
     res.status(200).json(data);
@@ -205,13 +203,12 @@ const searchRecipes = async (req, res) => {
 
   try {
     const data = await knex("recipes")
-      .select("id", "title", "ner", "directions")
+      .select("recipes.id", "recipes.title")
       .where((builder) => {
         if (s) {
           builder.where("title", "like", `%${s}%`);
         }
       })
-      .orderByRaw("LENGTH(title)")
       .limit(10);
 
     res.status(200).json(data);
